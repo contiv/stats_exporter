@@ -2,12 +2,20 @@ require "httparty"
 require "json"
 require "sinatra"
 
+OVS_DB_PORT = 6640
+
 set :bind, '0.0.0.0'
 
 get '/metrics' do
-  
+
+  # get etcd IP
+  etcd = ENV.fetch("CONTIV_ETCD").split("//").last
+
+  #get netmaster IP
+  netmaster = JSON.parse(HTTParty.get("http://#{etcd}/v2/keys/contiv.io/lock/netmaster/leader").body)["node"]["value"]
+
   # Get a list of networks
-  raw_networks = JSON.parse(HTTParty.get("http://192.168.2.54:9999/api/v1/networks/").body)
+  raw_networks = JSON.parse(HTTParty.get("http://#{netmaster}/api/v1/networks/").body)
 
   networks = []
   epInfo = {}
@@ -21,7 +29,7 @@ get '/metrics' do
 
   # Get endpoints and endpoint info for each network
   networks.each do |net|
-    raw_epstats = JSON.parse(HTTParty.get("http://192.168.2.54:9999/api/v1/inspect/networks/#{net}/").body)
+    raw_epstats = JSON.parse(HTTParty.get("http://#{netmaster}/api/v1/inspect/networks/#{net}/").body)
 
     tenant = raw_epstats["Config"]["tenantName"]
     network = raw_epstats["Config"]["networkName"]
@@ -44,11 +52,12 @@ get '/metrics' do
   end
 
   # get ovs stats
-  ovs_output = `ovs-vsctl --db=tcp:127.0.0.1:6640 list interface | egrep "name|external_ids|statistics"`
+  ovs_output = `ovs-vsctl --db=tcp:127.0.0.1:#{OVS_DB_PORT} list interface | egrep "name|external_ids|statistics"`
 
   # group ovs output by interface
   interfaces = ovs_output.strip.split("\n").each_slice(4)
 
+  # parses data from OVS output and matches endpointIDs with epInfo map created above
   interfaces.each do |ex_id, name, stats, status|
     epInfo.keys.each do |key|
       if ex_id.include?(key)

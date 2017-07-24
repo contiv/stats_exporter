@@ -6,13 +6,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \ 
   && apt-get -y upgrade \
   && apt-get install -y openvswitch-switch=2.5.2-0ubuntu0.16.04.1 \
-  && apt-get install -y ruby-full \
-  && apt-get install -y libjson-c2 \
-  && apt-get install -y build-essential
+  ruby-full \
+  libjson-c2 \
+  build-essential
 
 # Install gems
-RUN gem install bundler
 COPY Gemfile .
+RUN gem install bundler
 RUN bundle
 
 # Upload exporter
