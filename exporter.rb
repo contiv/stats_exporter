@@ -10,6 +10,18 @@ REQUIRED_KEYS = %w[external_ids name statistics]
 set :bind, '0.0.0.0'
 
 get '/metrics' do
+
+  records = []
+
+  if ENV.fetch("EXPORTER_MODE") == "netplugin":
+    records = netplugin_stats
+  
+  if ENV.fetch("EXPORTER_MODE") == "netmaster":
+    record = netmaster_stats
+end
+
+
+def netplugin_stats
   # get etcd IP
   etcd = ENV.fetch("CONTIV_ETCD").split("//").last
 
@@ -58,7 +70,6 @@ get '/metrics' do
 
   puts "epInfo:"
   puts epInfo.inspect
-  
 
   # get ovs stats
   cmd = "ovs-vsctl --db=tcp:127.0.0.1:#{OVS_DB_PORT} list interface | egrep '^name|external_ids|statistics'"
@@ -111,4 +122,26 @@ get '/metrics' do
 
   # return key-value pairs
   records.join("\n") + "\n"
+end
+
+def netmaster_stats
+    # get etcd IP
+  etcd = ENV.fetch("CONTIV_ETCD").split("//").last
+
+  #get netmaster IP
+  puts "fetching leading address"
+  netmaster = JSON.parse(HTTParty.get("http://#{etcd}/v2/keys/contiv.io/lock/netmaster/leader").body)["node"]["value"]
+
+  # Get a list of networks
+  puts "fetching data"
+  raw_tenants = JSON.parse(HTTParty.get("http://#{netmaster}/api/v1/tenants/").body)
+
+  records << "count_of_tenants #{raw_tenants.length}"
+
+  raw_tenants.each do |block|
+    data = block["link-sets"]
+    records << 'count_of_networks{"tenant" = #{block["tenantName"]}
+
+    end
+  end
 end
