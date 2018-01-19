@@ -3,12 +3,10 @@ FROM ubuntu:16.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install OVS
-RUN apt-get update \ 
+RUN apt-get update \
   && apt-get -y upgrade \
-  && apt-get install -y openvswitch-switch=2.5.2-0ubuntu0.16.04.1 \
-  ruby-full \
-  libjson-c2 \
-  build-essential
+  && apt-get install -y openvswitch-switch=2.5.2* ruby-full libjson-c2 build-essential \
+  && rm -rf /var/lib/apt/lists/*
 
 # Install gems
 COPY Gemfile .
